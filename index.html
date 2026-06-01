@@ -7,7 +7,20 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f8f6f3">
 <title>我的衣橱 — 虚拟衣柜搭配</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Supabase SDK loaded separately -->
+<script>
+// Safe Supabase loader — handles CDN failure gracefully
+window._supabaseReady = false;
+window._supabasePending = null;
+
+(function(){
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+  s.onload = function(){ window._supabaseReady = true; };
+  s.onerror = function(){ console.warn('Supabase CDN 加载失败，云端同步不可用'); window._supabaseReady = false; };
+  document.head.appendChild(s);
+})();
+</script>
 <style>
 /* ===== CSS Variables ===== */
 :root {
@@ -1160,10 +1173,19 @@ function clearCloudConfig() {
 function isCloudEnabled() { return !!supabase; }
 
 function initSupabase() {
+  if (!window.supabase || !window.supabase.createClient) {
+    console.warn('Supabase SDK 未加载，使用本地存储模式');
+    return false;
+  }
   const cfg = getCloudConfig();
   if (cfg && cfg.url && cfg.key) {
-    supabase = window.supabase.createClient(cfg.url, cfg.key);
-    return true;
+    try {
+      supabase = window.supabase.createClient(cfg.url, cfg.key);
+      return true;
+    } catch(e) {
+      console.error('Supabase 初始化失败:', e);
+      return false;
+    }
   }
   return false;
 }
@@ -1194,6 +1216,10 @@ function updateCloudStatusUI() {
 }
 
 async function connectCloud() {
+  if (!window.supabase || !window.supabase.createClient) {
+    showToast('Supabase SDK 加载失败，请检查网络连接后刷新页面', 'danger');
+    return;
+  }
   const url = document.getElementById('supabaseUrl').value.trim();
   const key = document.getElementById('supabaseKey').value.trim();
   if (!url || !key) { showToast('请填写 Supabase URL 和 Anon Key', 'danger'); return; }
@@ -2070,10 +2096,22 @@ function setupEvents() {
 async function init() {
   try {
     await openIDB();
-    const cloudReady = initSupabase();
     await loadData();
     setupEvents();
-    if (cloudReady) updateCloudStatusUI();
+
+    // Try cloud init (Supabase SDK may still be loading)
+    if (window._supabaseReady) {
+      const ok = initSupabase();
+      updateCloudStatusUI();
+      if (ok) await loadData(); // reload from cloud
+    } else {
+      // SDK still loading — wait briefly then retry
+      setTimeout(async () => {
+        const ok = initSupabase();
+        updateCloudStatusUI();
+        if (ok) await loadData();
+      }, 2000);
+    }
   } catch (err) {
     console.error('初始化失败:', err);
     document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100dvh;padding:24px;text-align:center;font-family:-apple-system,sans-serif;"><div><h2 style="margin-bottom:12px;">⚠️ 初始化失败</h2><p style="color:#888;line-height:1.7;">请检查浏览器是否支持 IndexedDB<br>或尝试刷新页面</p></div></div>';
