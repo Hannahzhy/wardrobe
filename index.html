@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f8f6f3">
+<title>我的衣橱 — 虚拟衣柜搭配</title>
+<style>
+/* ===== CSS Variables ===== */
+:root {
+  --bg: #f8f6f3;
+  --card: #ffffff;
+  --primary: #c88b7a;
+  --primary-dark: #b07564;
+  --primary-light: #f5e2db;
+  --text: #2d2422;
+  --text-secondary: #8c827c;
+  --border: #ebe5df;
+  --danger: #d47060;
+  --danger-light: #fce8e4;
+  --success: #6bae8a;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow: 0 2px 12px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.10);
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --nav-height: 64px;
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --content-max: 1400px;
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  background: #f0ede9;
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100dvh;
+}
+button { font: inherit; border: none; background: none; cursor: pointer; color: inherit; }
+input { font: inherit; }
+img { display: block; max-width: 100%; }
+
+/* ===== App Shell ===== */
+.app {
+  width: 100%;
+  max-width: var(--content-max);
+  min-height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  box-shadow: 0 0 60px rgba(0,0,0,0.04);
+}
+
+/* ===== Header ===== */
+.header {
+  padding: 0 24px;
+  padding-top: max(0px, var(--safe-top));
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(248, 246, 243, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  min-height: 56px;
+}
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
+.header-count {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  background: var(--border);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.header-spacer { flex: 1; }
+
+/* Desktop nav tabs (hidden on mobile) */
+.header-nav {
+  display: none;
+  gap: 2px;
+  background: var(--border);
+  border-radius: 12px;
+  padding: 3px;
+}
+.header-nav .nav-pill {
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.header-nav .nav-pill.active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.header-nav .nav-pill:hover:not(.active) { color: var(--text); }
+
+/* Desktop add button (hidden on mobile) */
+.header-add-btn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 24px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: var(--transition);
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(200, 139, 122, 0.3);
+}
+.header-add-btn:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(200, 139, 122, 0.4); }
+
+/* ===== Main Content ===== */
+.main {
+  flex: 1;
+  padding: 16px 24px;
+  padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: fadeSlideIn 0.3s ease; }
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Bottom Nav (mobile only) ===== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--nav-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+}
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  min-width: 64px;
+  min-height: 44px;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  border-radius: var(--radius-sm);
+}
+.nav-btn.active { color: var(--primary); }
+.nav-btn .nav-icon { font-size: 1.4rem; transition: var(--transition); }
+.nav-btn .nav-label { font-size: 0.7rem; font-weight: 500; }
+.nav-btn.active .nav-icon { transform: scale(1.1); }
+
+/* ===== Category Filter Chips ===== */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 16px;
+  flex-wrap: wrap;
+  scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  background: var(--card);
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+  transition: var(--transition);
+  white-space: nowrap;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.filter-chip:hover { border-color: var(--primary); color: var(--primary); }
+.filter-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.filter-chip:active { transform: scale(0.96); }
+
+/* ===== Clothing Grid (responsive) ===== */
+.clothes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.cloth-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  position: relative;
+  cursor: default;
+}
+.cloth-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.cloth-card:active { transform: scale(0.97); }
+.cloth-card-image {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  background: #f0ece8;
+}
+.cloth-card-info {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.cloth-card-name {
+  font-size: 0.84rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.cloth-card-cat {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.cloth-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: var(--transition);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.cloth-card:hover .cloth-card-delete,
+.cloth-card:active .cloth-card-delete { opacity: 1; }
+.cloth-card-delete:hover { background: var(--danger); }
+
+/* ===== FAB (mobile only) ===== */
+.fab {
+  position: fixed;
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + 20px);
+  right: 20px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg);
+  transition: var(--transition);
+  z-index: 90;
+}
+.fab:active { transform: scale(0.9); background: var(--primary-dark); }
+
+/* ===== Outfit Builder ===== */
+.outfit-builder-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.outfit-preview {
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  min-height: 260px;
+  position: relative;
+}
+.outfit-preview-title {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.outfit-slots {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.outfit-slot {
+  width: 100%;
+  max-width: 200px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: var(--transition);
+  cursor: pointer;
+}
+.outfit-slot.has-item { box-shadow: var(--shadow-sm); }
+.outfit-slot:hover.has-item { box-shadow: var(--shadow); }
+.outfit-slot-image {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  background: #f0ece8;
+  display: block;
+}
+.outfit-slot-placeholder {
+  width: 100%;
+  aspect-ratio: 4/3;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  gap: 4px;
+}
+.outfit-slot-label {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 4px;
+  font-weight: 500;
+}
+.outfit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.outfit-actions button {
+  flex: 1;
+  padding: 11px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: var(--transition);
+  min-height: 44px;
+  cursor: pointer;
+}
+.btn-random { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
+.btn-random:hover { background: var(--border); }
+.btn-random:active { background: #ddd; }
+.btn-save { background: var(--primary); color: #fff; }
+.btn-save:hover { background: var(--primary-dark); }
+.btn-save:active { background: var(--primary-dark); }
+
+/* Outfit category sections */
+.outfit-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.outfit-cat-header {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.outfit-cat-header .count {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+.outfit-cat-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.outfit-cat-scroll::-webkit-scrollbar { height: 4px; }
+.outfit-cat-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.outfit-item {
+  flex-shrink: 0;
+  width: 80px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 2.5px solid transparent;
+  transition: var(--transition);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.outfit-item:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.outfit-item.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.outfit-item:active { transform: scale(0.93); }
+.outfit-item img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  background: #f0ece8;
+}
+.outfit-item-name {
+  font-size: 0.68rem;
+  padding: 4px 6px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Saved Outfits Grid ===== */
+.saved-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.saved-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  position: relative;
+  cursor: pointer;
+}
+.saved-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.saved-card:active { transform: scale(0.97); }
+.saved-card-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+.saved-card-items img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f0ece8;
+}
+.saved-card-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 2px;
+}
+.saved-card-date {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.saved-card-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--danger-light);
+  color: var(--danger);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: var(--transition);
+}
+.saved-card:hover .saved-card-delete,
+.saved-card:active .saved-card-delete { opacity: 1; }
+.saved-card-delete:hover { background: var(--danger); color: #fff; }
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: overlayIn 0.3s ease;
+}
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 85dvh;
+  background: var(--card);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: 8px 24px calc(24px + var(--safe-bottom));
+  overflow-y: auto;
+  animation: sheetUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 8px auto 16px;
+}
+.modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Image upload area */
+.upload-area {
+  width: 100%;
+  aspect-ratio: 4/3;
+  max-height: 280px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-bottom: 20px;
+  background: var(--bg);
+  overflow: hidden;
+  position: relative;
+}
+.upload-area:hover { border-color: var(--primary); background: var(--primary-light); }
+.upload-area:active { border-color: var(--primary); background: var(--primary-light); }
+.upload-area.has-image { border-style: solid; border-color: var(--border); }
+.upload-area img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.upload-icon { font-size: 2.2rem; }
+.upload-text { font-size: 0.88rem; color: var(--text-secondary); font-weight: 500; }
+
+/* Form fields */
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; display: block; }
+.form-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  background: var(--bg);
+  transition: var(--transition);
+  min-height: 46px;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Category picker in form */
+.cat-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.cat-option {
+  padding: 11px 8px;
+  text-align: center;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.84rem;
+  font-weight: 500;
+  transition: var(--transition);
+  background: var(--card);
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.cat-option:hover { border-color: var(--primary); }
+.cat-option.selected { border-color: var(--primary); background: var(--primary-light); color: var(--primary-dark); }
+.cat-option:active { transform: scale(0.95); }
+
+/* Modal buttons */
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+.modal-buttons button {
+  flex: 1;
+  padding: 13px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.92rem;
+  min-height: 48px;
+  transition: var(--transition);
+  cursor: pointer;
+}
+.btn-cancel { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
+.btn-cancel:hover { background: var(--border); }
+.btn-confirm { background: var(--primary); color: #fff; }
+.btn-confirm:hover { background: var(--primary-dark); }
+.btn-confirm:active { background: var(--primary-dark); }
+.btn-confirm:disabled { opacity: 0.45; pointer-events: none; }
+
+/* ===== View Outfit Modal ===== */
+.outfit-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+}
+.outfit-detail-item {
+  width: 100%;
+  max-width: 260px;
+}
+.outfit-detail-item img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: var(--radius);
+  background: #f0ece8;
+}
+.outfit-detail-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ===== Toast ===== */
+.toast-container {
+  position: fixed;
+  top: max(20px, var(--safe-top) + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: calc(100% - 32px);
+  max-width: 420px;
+  pointer-events: none;
+}
+.toast {
+  padding: 12px 20px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: center;
+  animation: toastIn 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: auto;
+  box-shadow: var(--shadow-lg);
+}
+.toast.danger { background: var(--danger); }
+.toast.success { background: var(--success); }
+.toast.out { animation: toastOut 0.25s ease forwards; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-20px); }
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+.empty-icon { font-size: 4rem; margin-bottom: 16px; }
+.empty-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+.empty-desc { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.7; }
+
+/* ===== Misc ===== */
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 20px 0 12px;
+}
+.hidden { display: none !important; }
+
+/* ================================================================ */
+/*  RESPONSIVE — Tablet (≥ 640px)                                  */
+/* ================================================================ */
+@media (min-width: 640px) {
+  .clothes-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .saved-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .filter-bar { flex-wrap: nowrap; }
+  .outfit-slots { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .outfit-slot { max-width: 160px; }
+  .main { padding: 20px 28px; padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px); }
+}
+
+/* ================================================================ */
+/*  RESPONSIVE — Desktop (≥ 900px)                                 */
+/* ================================================================ */
+@media (min-width: 900px) {
+  /* Show desktop nav, hide mobile nav */
+  .header-nav { display: flex; }
+  .header-add-btn { display: flex; }
+  .bottom-nav { display: none; }
+  .fab { display: none; }
+
+  .header { padding: 0 32px; min-height: 60px; }
+  .header-brand { font-size: 1.3rem; }
+  .main { padding: 24px 32px 32px; }
+
+  /* Wider grids */
+  .clothes-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .saved-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* Outfit builder: side-by-side layout */
+  .outfit-builder-layout {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  .outfit-preview {
+    flex: 0 0 340px;
+    position: sticky;
+    top: calc(60px + var(--safe-top) + 24px);
+    min-height: 320px;
+  }
+  .outfit-categories { flex: 1; min-width: 0; }
+
+  .outfit-slots { flex-direction: column; align-items: center; }
+  .outfit-slot { max-width: 180px; }
+  .outfit-item { width: 88px; }
+  .outfit-item img { width: 88px; height: 88px; }
+
+  /* Modals: centered dialog */
+  .modal-overlay { align-items: center; }
+  .modal-sheet {
+    border-radius: var(--radius-xl);
+    max-width: 500px;
+    max-height: 80dvh;
+    padding: 12px 28px 28px;
+    animation: modalPop 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal-handle { display: none; }
+
+  /* Desktop empty state message tweak */
+  .empty-state { padding: 80px 20px; }
+}
+
+/* ================================================================ */
+/*  RESPONSIVE — Large Desktop (≥ 1200px)                          */
+/* ================================================================ */
+@media (min-width: 1200px) {
+  .clothes-grid { grid-template-columns: repeat(5, 1fr); gap: 18px; }
+  .saved-grid { grid-template-columns: repeat(5, 1fr); gap: 18px; }
+  .outfit-preview { flex: 0 0 380px; }
+  .outfit-slot { max-width: 200px; }
+}
+
+/* ================================================================ */
+/*  RESPONSIVE — Extra Large (≥ 1600px)                            */
+/* ================================================================ */
+@media (min-width: 1600px) {
+  .clothes-grid { grid-template-columns: repeat(6, 1fr); }
+  .saved-grid { grid-template-columns: repeat(6, 1fr); }
+  .main { padding: 28px 40px 32px; }
+  .header { padding: 0 40px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ===== Header ===== -->
+  <header class="header">
+    <div class="header-brand">👗 我的衣橱</div>
+    <div class="header-count" id="headerCount">0 件</div>
+
+    <!-- Desktop nav tabs -->
+    <nav class="header-nav" id="headerNav">
+      <button class="nav-pill active" data-tab="wardrobe">👚 衣柜</button>
+      <button class="nav-pill" data-tab="outfit">✨ 搭配</button>
+      <button class="nav-pill" data-tab="saved">💝 收藏</button>
+    </nav>
+
+    <div class="header-spacer"></div>
+
+    <!-- Desktop add button -->
+    <button class="header-add-btn" id="headerAddBtn">+ 添加衣服</button>
+  </header>
+
+  <!-- ===== Main Content ===== -->
+  <main class="main" id="mainContent">
+
+    <!-- Tab: Wardrobe -->
+    <div class="tab-content active" id="tabWardrobe">
+      <div class="filter-bar" id="filterBar"></div>
+      <div class="clothes-grid" id="clothesGrid"></div>
+      <div class="empty-state hidden" id="wardrobeEmpty">
+        <div class="empty-icon">🫙</div>
+        <div class="empty-title">衣柜还是空的</div>
+        <div class="empty-desc" id="wardrobeEmptyDesc">点击 + 按钮添加你的第一件衣服吧</div>
+      </div>
+    </div>
+
+    <!-- Tab: Outfit Builder -->
+    <div class="tab-content" id="tabOutfit">
+      <div class="outfit-builder-layout">
+        <div class="outfit-preview" id="outfitPreview">
+          <div class="outfit-preview-title">✨ 搭配预览</div>
+          <div class="outfit-slots" id="outfitSlots"></div>
+          <div class="outfit-actions">
+            <button class="btn-random" id="btnRandom">🎲 随机搭配</button>
+            <button class="btn-save" id="btnSaveOutfit">💾 保存搭配</button>
+          </div>
+        </div>
+        <div class="outfit-categories" id="outfitCategories"></div>
+      </div>
+      <div class="empty-state hidden" id="outfitEmpty">
+        <div class="empty-icon">👔</div>
+        <div class="empty-title">还没有衣服</div>
+        <div class="empty-desc">先去衣柜添加一些衣服<br>再来搭配吧</div>
+      </div>
+    </div>
+
+    <!-- Tab: Saved Outfits -->
+    <div class="tab-content" id="tabSaved">
+      <div class="saved-grid" id="savedGrid"></div>
+      <div class="empty-state hidden" id="savedEmpty">
+        <div class="empty-icon">💝</div>
+        <div class="empty-title">还没有保存的搭配</div>
+        <div class="empty-desc">在搭配页面创建并保存<br>你喜欢的组合</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===== Bottom Nav (mobile only) ===== -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="nav-btn active" data-tab="wardrobe">
+      <span class="nav-icon">👚</span>
+      <span class="nav-label">衣柜</span>
+    </button>
+    <button class="nav-btn" data-tab="outfit">
+      <span class="nav-icon">✨</span>
+      <span class="nav-label">搭配</span>
+    </button>
+    <button class="nav-btn" data-tab="saved">
+      <span class="nav-icon">💝</span>
+      <span class="nav-label">收藏</span>
+    </button>
+  </nav>
+
+  <!-- ===== FAB (mobile only) ===== -->
+  <button class="fab" id="fabAdd" aria-label="添加衣服">+</button>
+
+  <!-- ===== Toast Container ===== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ===== Add Clothing Modal ===== -->
+  <div class="modal-overlay hidden" id="addModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">添加衣服</div>
+      <input type="file" accept="image/*" id="fileInput" class="hidden">
+      <div class="upload-area" id="uploadArea">
+        <span class="upload-icon">📸</span>
+        <span class="upload-text">点击拍照或选择照片</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">名称（选填）</label>
+        <input class="form-input" id="clothName" placeholder="例如：白色T恤、黑色牛仔裤" maxlength="30">
+      </div>
+      <div class="form-group">
+        <label class="form-label">分类</label>
+        <div class="cat-picker" id="catPicker"></div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn-cancel" id="btnCancelAdd">取消</button>
+        <button class="btn-confirm" id="btnConfirmAdd" disabled>保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== View Outfit Modal ===== -->
+  <div class="modal-overlay hidden" id="viewOutfitModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="viewOutfitTitle">搭配详情</div>
+      <div class="outfit-detail" id="outfitDetail"></div>
+      <div class="modal-buttons">
+        <button class="btn-cancel" id="btnCloseView">关闭</button>
+        <button class="btn-confirm" id="btnDeleteOutfit" style="background: var(--danger);">删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Constants =====
+const CATEGORIES = [
+  { id: 'tops', name: '上衣', icon: '👕' },
+  { id: 'bottoms', name: '下装', icon: '👖' },
+  { id: 'dresses', name: '连衣裙', icon: '👗' },
+  { id: 'outerwear', name: '外套', icon: '🧥' },
+  { id: 'shoes', name: '鞋子', icon: '👟' },
+  { id: 'accessories', name: '配饰', icon: '👜' },
+];
+
+const OUTFIT_ORDER = ['outerwear', 'tops', 'dresses', 'bottoms', 'shoes', 'accessories'];
+
+function getCatIcon(catId) {
+  return CATEGORIES.find(c => c.id === catId)?.icon || '👔';
+}
+function getCatName(catId) {
+  return CATEGORIES.find(c => c.id === catId)?.name || catId;
+}
+
+// ===== IndexedDB =====
+const DB_NAME = 'WardrobeDB';
+const DB_VERSION = 1;
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('clothes')) {
+        d.createObjectStore('clothes', { keyPath: 'id', autoIncrement: true });
+      }
+      if (!d.objectStoreNames.contains('outfits')) {
+        d.createObjectStore('outfits', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGetAll(storeName) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbAdd(storeName, item) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const req = store.add(item);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbDelete(storeName, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ===== Image Compression =====
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 600;
+        let w = img.width, h = img.height;
+        if (w > h && w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        else if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ===== State =====
+let clothes = [];
+let outfits = [];
+let currentTab = 'wardrobe';
+let filterCategory = 'all';
+let selectedForOutfit = {};
+let addImageData = null;
+let selectedCatForAdd = null;
+
+// ===== Detect if mobile for UI hints =====
+function isMobileView() {
+  return window.innerWidth < 900;
+}
+
+// ===== Toast =====
+function showToast(msg, type = '') {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('out');
+    el.addEventListener('animationend', () => el.remove());
+  }, 2200);
+}
+
+// ===== Render: Wardrobe =====
+function renderFilters() {
+  const bar = document.getElementById('filterBar');
+  const allChip = document.createElement('button');
+  allChip.className = 'filter-chip' + (filterCategory === 'all' ? ' active' : '');
+  allChip.textContent = '全部';
+  allChip.addEventListener('click', () => { filterCategory = 'all'; renderAll(); });
+  bar.replaceChildren(allChip);
+
+  CATEGORIES.forEach(cat => {
+    const chip = document.createElement('button');
+    chip.className = 'filter-chip' + (filterCategory === cat.id ? ' active' : '');
+    chip.textContent = cat.icon + ' ' + cat.name;
+    chip.addEventListener('click', () => { filterCategory = cat.id; renderAll(); });
+    bar.appendChild(chip);
+  });
+}
+
+function updateEmptyHint() {
+  const desc = document.getElementById('wardrobeEmptyDesc');
+  if (desc) {
+    desc.textContent = isMobileView()
+      ? '点击右下角的 + 按钮添加你的第一件衣服吧'
+      : '点击右上角的「+ 添加衣服」按钮开始吧';
+  }
+}
+
+function renderClothesGrid() {
+  const grid = document.getElementById('clothesGrid');
+  const empty = document.getElementById('wardrobeEmpty');
+
+  const filtered = filterCategory === 'all'
+    ? clothes
+    : clothes.filter(c => c.category === filterCategory);
+
+  if (filtered.length === 0) {
+    grid.replaceChildren();
+    empty.classList.remove('hidden');
+    updateEmptyHint();
+    return;
+  }
+  empty.classList.add('hidden');
+
+  grid.replaceChildren(...filtered.map(cloth => {
+    const card = document.createElement('div');
+    card.className = 'cloth-card';
+
+    const img = document.createElement('img');
+    img.className = 'cloth-card-image';
+    img.src = cloth.image;
+    img.alt = cloth.name;
+    img.loading = 'lazy';
+
+    const info = document.createElement('div');
+    info.className = 'cloth-card-info';
+
+    const name = document.createElement('span');
+    name.className = 'cloth-card-name';
+    name.textContent = cloth.name;
+
+    const cat = document.createElement('span');
+    cat.className = 'cloth-card-cat';
+    cat.textContent = getCatIcon(cloth.category);
+
+    info.appendChild(name);
+    info.appendChild(cat);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'cloth-card-delete';
+    delBtn.textContent = '✕';
+    delBtn.title = '删除';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteCloth(cloth.id);
+    });
+
+    card.appendChild(img);
+    card.appendChild(info);
+    card.appendChild(delBtn);
+    return card;
+  }));
+}
+
+// ===== Render: Outfit Builder =====
+function renderOutfitPreview() {
+  const slots = document.getElementById('outfitSlots');
+  const empty = document.getElementById('outfitEmpty');
+  const preview = document.getElementById('outfitPreview');
+  const categories = document.getElementById('outfitCategories');
+
+  if (clothes.length === 0) {
+    empty.classList.remove('hidden');
+    preview.classList.add('hidden');
+    categories.classList.add('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  preview.classList.remove('hidden');
+  categories.classList.remove('hidden');
+
+  slots.replaceChildren();
+  const orderedCats = OUTFIT_ORDER.filter(catId => {
+    if (selectedForOutfit['dresses'] && (catId === 'tops' || catId === 'bottoms')) return false;
+    return true;
+  });
+
+  let hasAny = false;
+  orderedCats.forEach(catId => {
+    const item = selectedForOutfit[catId];
+    const slot = document.createElement('div');
+    slot.className = 'outfit-slot' + (item ? ' has-item' : '');
+    slot.title = item ? '点击取消选择' : '';
+
+    if (item) {
+      hasAny = true;
+      const img = document.createElement('img');
+      img.className = 'outfit-slot-image';
+      img.src = item.image;
+      img.alt = item.name;
+      slot.appendChild(img);
+      const label = document.createElement('div');
+      label.className = 'outfit-slot-label';
+      label.textContent = getCatIcon(catId) + ' ' + item.name;
+      slot.appendChild(label);
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'outfit-slot-placeholder';
+      ph.innerHTML = getCatIcon(catId) + ' ' + getCatName(catId);
+      slot.appendChild(ph);
+    }
+
+    slot.addEventListener('click', () => {
+      if (item) { delete selectedForOutfit[catId]; renderAll(); }
+    });
+    slots.appendChild(slot);
+  });
+
+  if (!hasAny) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'text-align:center;color:var(--text-secondary);font-size:0.84rem;padding:12px;width:100%;';
+    hint.textContent = isMobileView()
+      ? '👇 在下方分类中选择衣物来搭配'
+      : '👉 在右侧分类中选择衣物来搭配';
+    slots.appendChild(hint);
+  }
+}
+
+function renderOutfitCategories() {
+  const container = document.getElementById('outfitCategories');
+  container.replaceChildren();
+
+  const visibleCats = CATEGORIES.filter(cat => {
+    if (selectedForOutfit['dresses'] && (cat.id === 'tops' || cat.id === 'bottoms')) return false;
+    return true;
+  });
+
+  visibleCats.forEach(cat => {
+    const catClothes = clothes.filter(c => c.category === cat.id);
+    if (catClothes.length === 0) return;
+
+    const section = document.createElement('div');
+    section.className = 'outfit-cat-section';
+
+    const header = document.createElement('div');
+    header.className = 'outfit-cat-header';
+    header.innerHTML = cat.icon + ' ' + cat.name + ' <span class="count">' + catClothes.length + '件</span>';
+    section.appendChild(header);
+
+    const scroll = document.createElement('div');
+    scroll.className = 'outfit-cat-scroll';
+
+    catClothes.forEach(cloth => {
+      const item = document.createElement('div');
+      item.className = 'outfit-item' + (selectedForOutfit[cat.id]?.id === cloth.id ? ' selected' : '');
+      item.title = cloth.name;
+      const img = document.createElement('img');
+      img.src = cloth.image;
+      img.alt = cloth.name;
+      img.loading = 'lazy';
+      const name = document.createElement('div');
+      name.className = 'outfit-item-name';
+      name.textContent = cloth.name;
+
+      item.appendChild(img);
+      item.appendChild(name);
+
+      item.addEventListener('click', () => {
+        if (selectedForOutfit[cat.id]?.id === cloth.id) {
+          delete selectedForOutfit[cat.id];
+        } else {
+          selectedForOutfit[cat.id] = cloth;
+          if (cat.id === 'dresses') {
+            delete selectedForOutfit['tops'];
+            delete selectedForOutfit['bottoms'];
+          }
+          if (cat.id === 'tops' || cat.id === 'bottoms') {
+            delete selectedForOutfit['dresses'];
+          }
+        }
+        renderAll();
+      });
+
+      scroll.appendChild(item);
+    });
+
+    section.appendChild(scroll);
+    container.appendChild(section);
+  });
+}
+
+// ===== Render: Saved Outfits =====
+function renderSavedOutfits() {
+  const grid = document.getElementById('savedGrid');
+  const empty = document.getElementById('savedEmpty');
+
+  if (outfits.length === 0) {
+    grid.replaceChildren();
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  grid.replaceChildren(...outfits.map(outfit => {
+    const card = document.createElement('div');
+    card.className = 'saved-card';
+    card.title = '点击查看详情';
+
+    const items = document.createElement('div');
+    items.className = 'saved-card-items';
+    (outfit.itemIds || []).forEach(id => {
+      const cloth = clothes.find(c => c.id === id);
+      if (cloth) {
+        const img = document.createElement('img');
+        img.src = cloth.image;
+        img.alt = cloth.name;
+        img.loading = 'lazy';
+        items.appendChild(img);
+      }
+    });
+    card.appendChild(items);
+
+    const name = document.createElement('div');
+    name.className = 'saved-card-name';
+    name.textContent = outfit.name || '未命名搭配';
+    card.appendChild(name);
+
+    const date = document.createElement('div');
+    date.className = 'saved-card-date';
+    date.textContent = new Date(outfit.createdAt).toLocaleDateString('zh-CN');
+    card.appendChild(date);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'saved-card-delete';
+    delBtn.textContent = '✕';
+    delBtn.title = '删除';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteOutfit(outfit.id);
+    });
+    card.appendChild(delBtn);
+
+    card.addEventListener('click', () => viewOutfit(outfit));
+    return card;
+  }));
+}
+
+// ===== Render All =====
+function renderAll() {
+  document.getElementById('headerCount').textContent = clothes.length + ' 件';
+  renderFilters();
+  renderClothesGrid();
+  renderOutfitPreview();
+  renderOutfitCategories();
+  renderSavedOutfits();
+}
+
+// ===== Data Operations =====
+async function loadData() {
+  clothes = await dbGetAll('clothes');
+  outfits = await dbGetAll('outfits');
+  updateEmptyHint();
+  renderAll();
+}
+
+async function addCloth(name, category, imageData) {
+  const cloth = { name, category, image: imageData, createdAt: Date.now() };
+  const id = await dbAdd('clothes', cloth);
+  cloth.id = id;
+  clothes.push(cloth);
+  renderAll();
+  showToast('添加成功！', 'success');
+}
+
+async function deleteCloth(id) {
+  if (!confirm('确定要删除这件衣服吗？')) return;
+  await dbDelete('clothes', id);
+  clothes = clothes.filter(c => c.id !== id);
+  for (const [catId, item] of Object.entries(selectedForOutfit)) {
+    if (item.id === id) delete selectedForOutfit[catId];
+  }
+  outfits = outfits.filter(o => {
+    if ((o.itemIds || []).includes(id)) { dbDelete('outfits', o.id); return false; }
+    return true;
+  });
+  renderAll();
+  showToast('已删除', 'danger');
+}
+
+async function saveOutfit(name) {
+  const itemIds = Object.values(selectedForOutfit).map(c => c.id);
+  if (itemIds.length === 0) { showToast('请先选择至少一件衣服', 'danger'); return; }
+  const outfit = { name: name || '我的搭配', itemIds, createdAt: Date.now() };
+  const id = await dbAdd('outfits', outfit);
+  outfit.id = id;
+  outfits.push(outfit);
+  selectedForOutfit = {};
+  renderAll();
+  switchTab('saved');
+  showToast('搭配已保存！', 'success');
+}
+
+async function deleteOutfit(id) {
+  if (!confirm('确定要删除这个搭配吗？')) return;
+  await dbDelete('outfits', id);
+  outfits = outfits.filter(o => o.id !== id);
+  renderAll();
+  showToast('已删除', 'danger');
+}
+
+// ===== Random Outfit =====
+function generateRandomOutfit() {
+  if (clothes.length === 0) { showToast('请先添加衣服', 'danger'); return; }
+  selectedForOutfit = {};
+
+  const dressClothes = clothes.filter(c => c.category === 'dresses');
+  const topsClothes = clothes.filter(c => c.category === 'tops');
+  const bottomsClothes = clothes.filter(c => c.category === 'bottoms');
+  const useDress = dressClothes.length > 0 && (Math.random() < 0.4 || (topsClothes.length === 0 || bottomsClothes.length === 0));
+
+  if (useDress) {
+    selectedForOutfit['dresses'] = dressClothes[Math.floor(Math.random() * dressClothes.length)];
+  } else {
+    if (topsClothes.length > 0) selectedForOutfit['tops'] = topsClothes[Math.floor(Math.random() * topsClothes.length)];
+    if (bottomsClothes.length > 0) selectedForOutfit['bottoms'] = bottomsClothes[Math.floor(Math.random() * bottomsClothes.length)];
+  }
+
+  const shoesClothes = clothes.filter(c => c.category === 'shoes');
+  if (shoesClothes.length > 0 && Math.random() < 0.85) {
+    selectedForOutfit['shoes'] = shoesClothes[Math.floor(Math.random() * shoesClothes.length)];
+  }
+  const outerClothes = clothes.filter(c => c.category === 'outerwear');
+  if (outerClothes.length > 0 && Math.random() < 0.3) {
+    selectedForOutfit['outerwear'] = outerClothes[Math.floor(Math.random() * outerClothes.length)];
+  }
+  const accClothes = clothes.filter(c => c.category === 'accessories');
+  if (accClothes.length > 0 && Math.random() < 0.2) {
+    selectedForOutfit['accessories'] = accClothes[Math.floor(Math.random() * accClothes.length)];
+  }
+
+  renderAll();
+  document.getElementById('outfitPreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ===== View Outfit =====
+function viewOutfit(outfit) {
+  const modal = document.getElementById('viewOutfitModal');
+  const detail = document.getElementById('outfitDetail');
+  document.getElementById('viewOutfitTitle').textContent = outfit.name || '搭配详情';
+
+  detail.replaceChildren();
+  (outfit.itemIds || []).forEach(id => {
+    const cloth = clothes.find(c => c.id === id);
+    if (!cloth) return;
+    const div = document.createElement('div');
+    div.className = 'outfit-detail-item';
+    const img = document.createElement('img');
+    img.src = cloth.image;
+    img.alt = cloth.name;
+    const label = document.createElement('div');
+    label.className = 'outfit-detail-label';
+    label.textContent = getCatIcon(cloth.category) + ' ' + cloth.name;
+    div.appendChild(img);
+    div.appendChild(label);
+    detail.appendChild(div);
+  });
+
+  document.getElementById('btnDeleteOutfit').onclick = () => {
+    modal.classList.add('hidden');
+    deleteOutfit(outfit.id);
+  };
+
+  modal.classList.remove('hidden');
+  modal.scrollTop = 0;
+}
+
+// ===== Tab Switching =====
+function switchTab(tab) {
+  currentTab = tab;
+
+  // Content visibility
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  const tabEl = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  if (tabEl) tabEl.classList.add('active');
+
+  // Both navs (mobile bottom + desktop header)
+  document.querySelectorAll('.nav-btn, .nav-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+
+  // Mobile FAB: only show on wardrobe tab
+  document.getElementById('fabAdd').classList.toggle('hidden', tab !== 'wardrobe');
+
+  if (tab === 'outfit') {
+    setTimeout(() => {
+      document.getElementById('outfitPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }
+}
+
+// ===== Modal: Add Clothing =====
+function openAddModal() {
+  addImageData = null;
+  selectedCatForAdd = null;
+  document.getElementById('clothName').value = '';
+  document.getElementById('btnConfirmAdd').disabled = true;
+
+  const uploadArea = document.getElementById('uploadArea');
+  uploadArea.classList.remove('has-image');
+  uploadArea.querySelector('img')?.remove();
+  const icon = uploadArea.querySelector('.upload-icon');
+  const text = uploadArea.querySelector('.upload-text');
+  if (icon) icon.style.display = '';
+  if (text) text.style.display = '';
+
+  renderCatPicker();
+  document.getElementById('addModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAddModal() {
+  document.getElementById('addModal').classList.add('hidden');
+  document.body.style.overflow = '';
+  addImageData = null;
+  selectedCatForAdd = null;
+}
+
+function renderCatPicker() {
+  const picker = document.getElementById('catPicker');
+  picker.replaceChildren(...CATEGORIES.map(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-option' + (selectedCatForAdd === cat.id ? ' selected' : '');
+    btn.innerHTML = cat.icon + ' ' + cat.name;
+    btn.addEventListener('click', () => {
+      selectedCatForAdd = cat.id;
+      renderCatPicker();
+      updateAddConfirmState();
+    });
+    return btn;
+  }));
+}
+
+function updateAddConfirmState() {
+  document.getElementById('btnConfirmAdd').disabled = !(addImageData && selectedCatForAdd);
+}
+
+// ===== Event Setup =====
+function setupEvents() {
+  // Navigation — both mobile bottom-nav and desktop header-nav
+  document.querySelectorAll('.nav-btn, .nav-pill').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Add buttons — both mobile FAB and desktop header button
+  document.getElementById('fabAdd').addEventListener('click', openAddModal);
+  document.getElementById('headerAddBtn').addEventListener('click', openAddModal);
+
+  // Add modal: file upload
+  const uploadArea = document.getElementById('uploadArea');
+  const fileInput = document.getElementById('fileInput');
+  uploadArea.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      addImageData = await compressImage(file);
+      uploadArea.classList.add('has-image');
+      const icon = uploadArea.querySelector('.upload-icon');
+      const text = uploadArea.querySelector('.upload-text');
+      if (icon) icon.style.display = 'none';
+      if (text) text.style.display = 'none';
+      const existingImg = uploadArea.querySelector('img');
+      if (existingImg) existingImg.remove();
+      const img = document.createElement('img');
+      img.src = addImageData;
+      img.alt = '预览';
+      uploadArea.appendChild(img);
+      updateAddConfirmState();
+    } catch (err) {
+      showToast('图片处理失败，请重试', 'danger');
+    }
+  });
+
+  // Add modal: name input
+  document.getElementById('clothName').addEventListener('input', updateAddConfirmState);
+
+  // Add modal: buttons
+  document.getElementById('btnCancelAdd').addEventListener('click', closeAddModal);
+  document.getElementById('btnConfirmAdd').addEventListener('click', () => {
+    const name = document.getElementById('clothName').value.trim() || getCatName(selectedCatForAdd);
+    addCloth(name, selectedCatForAdd, addImageData);
+    closeAddModal();
+  });
+
+  // Add modal: close on overlay click
+  document.getElementById('addModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddModal();
+  });
+
+  // View outfit modal
+  document.getElementById('viewOutfitModal').addEventListener('click', function(e) {
+    if (e.target === this) { this.classList.add('hidden'); document.body.style.overflow = ''; }
+  });
+  document.getElementById('btnCloseView').addEventListener('click', () => {
+    document.getElementById('viewOutfitModal').classList.add('hidden');
+    document.body.style.overflow = '';
+  });
+
+  // Outfit actions
+  document.getElementById('btnRandom').addEventListener('click', generateRandomOutfit);
+  document.getElementById('btnSaveOutfit').addEventListener('click', () => {
+    const name = prompt('给这个搭配起个名字：', '我的搭配');
+    if (name !== null) saveOutfit(name.trim());
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeAddModal();
+      document.getElementById('viewOutfitModal').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+    // Ctrl+N or N for new item (desktop)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault();
+      if (currentTab === 'wardrobe') openAddModal();
+    }
+    // 1/2/3 to switch tabs
+    if (!e.ctrlKey && !e.metaKey && !e.target.closest('input')) {
+      if (e.key === '1') switchTab('wardrobe');
+      if (e.key === '2') switchTab('outfit');
+      if (e.key === '3') switchTab('saved');
+    }
+  });
+
+  // Update mobile hints on resize
+  window.addEventListener('resize', () => {
+    // Re-render to update directional hints if on outfit tab
+    if (currentTab === 'outfit') {
+      renderOutfitPreview();
+    }
+    if (currentTab === 'wardrobe' && clothes.length === 0) {
+      updateEmptyHint();
+    }
+  });
+}
+
+// ===== Init =====
+async function init() {
+  try {
+    await openDB();
+    await loadData();
+    setupEvents();
+  } catch (err) {
+    console.error('初始化失败:', err);
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100dvh;padding:24px;text-align:center;font-family:-apple-system,sans-serif;"><div><h2 style="margin-bottom:12px;">⚠️ 初始化失败</h2><p style="color:#888;line-height:1.7;">请检查浏览器是否支持 IndexedDB<br>或尝试刷新页面</p></div></div>';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
