@@ -7,20 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f8f6f3">
 <title>我的衣橱 — 虚拟衣柜搭配</title>
-<!-- Supabase SDK loaded separately -->
-<script>
-// Safe Supabase loader — handles CDN failure gracefully
-window._supabaseReady = false;
-window._supabasePending = null;
-
-(function(){
-  var s = document.createElement('script');
-  s.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-  s.onload = function(){ window._supabaseReady = true; };
-  s.onerror = function(){ console.warn('Supabase CDN 加载失败，云端同步不可用'); window._supabaseReady = false; };
-  document.head.appendChild(s);
-})();
-</script>
+<script src="supabase.js"></script>
 <style>
 /* ===== CSS Variables ===== */
 :root {
@@ -2099,19 +2086,10 @@ async function init() {
     await loadData();
     setupEvents();
 
-    // Try cloud init (Supabase SDK may still be loading)
-    if (window._supabaseReady) {
-      const ok = initSupabase();
-      updateCloudStatusUI();
-      if (ok) await loadData(); // reload from cloud
-    } else {
-      // SDK still loading — wait briefly then retry
-      setTimeout(async () => {
-        const ok = initSupabase();
-        updateCloudStatusUI();
-        if (ok) await loadData();
-      }, 2000);
-    }
+    // Try cloud init with local supabase.js
+    const ok = initSupabase();
+    updateCloudStatusUI();
+    if (ok) await loadData(); // reload from cloud
   } catch (err) {
     console.error('初始化失败:', err);
     document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100dvh;padding:24px;text-align:center;font-family:-apple-system,sans-serif;"><div><h2 style="margin-bottom:12px;">⚠️ 初始化失败</h2><p style="color:#888;line-height:1.7;">请检查浏览器是否支持 IndexedDB<br>或尝试刷新页面</p></div></div>';
