@@ -10,10 +10,57 @@
 - 🎲 **随机搭配**：一键生成搭配灵感
 - 💾 **收藏搭配**：保存喜欢的搭配方案，随时回顾
 - 📱 **移动优化**：适配 iPhone 安全区域，支持添加到主屏幕
+- ☁️ **云端同步**：可选连接 Supabase，多设备自动同步
+- 📦 **数据导出/导入**：支持 JSON 格式备份恢复
 
-## 如何部署（3 种方式，任选其一）
+## ☁️ 云端同步设置（让手机和电脑数据互通）
 
-### 方式一：GitHub Pages（推荐，免费）
+### 1. 创建 Supabase 项目（免费）
+
+1. 打开 https://supabase.com → Sign Up 注册（可用 GitHub 登录）
+2. 创建一个新项目，选免费的 Starter 方案
+3. 进入项目 Settings → API → 复制 **Project URL** 和 **anon public key**
+
+### 2. 创建数据库表
+
+在 Supabase 项目里打开 **SQL Editor**，粘贴以下 SQL 并执行：
+
+```sql
+CREATE TABLE clothes (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL,
+  image TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE outfits (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT '我的搭配',
+  item_ids BIGINT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 允许匿名访问（个人使用没问题）
+ALTER TABLE clothes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE outfits ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "anon_all" ON clothes FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "anon_all" ON outfits FOR ALL USING (true) WITH CHECK (true);
+```
+
+### 3. 连接网站
+
+1. 打开你的衣橱网站 → 点击 ⚙️ 按钮
+2. 粘贴 Supabase URL 和 Anon Key
+3. 点击「连接云端」
+4. 在手机和电脑上都这样配置一遍（填入相同的 URL 和 Key）
+
+之后无论在哪台设备上传衣服，所有设备都会自动同步！
+
+## 如何部署
+
+### GitHub Pages（推荐，免费）
 
 1. 在 GitHub 新建一个仓库（如 `wardrobe`）
 2. 将 `index.html` 上传到仓库
@@ -21,28 +68,13 @@
 4. 等几分钟后，访问 `https://你的用户名.github.io/wardrobe`
 5. 在 iPhone Safari 打开 → 点击分享按钮 → 「添加到主屏幕」
 
-### 方式二：Vercel / Netlify（免费，国内访问更快）
+### Vercel / Netlify（免费，国内访问更快）
 
 直接拖拽 `index.html` 到 [Netlify Drop](https://app.netlify.com/drop) 即可部署。
 
-### 方式三：本地测试
-
-```bash
-# 在电脑上进入项目目录，启动一个简单的 HTTP 服务器
-cd wardrobe
-python3 -m http.server 8080
-
-# 确保 iPhone 和电脑在同一 Wi-Fi
-# 在 iPhone Safari 访问：http://电脑IP:8080
-```
-
 ## 技术说明
 
-- 纯前端，无需后端服务器
-- 使用 IndexedDB 在浏览器本地存储数据（图片和搭配信息）
-- 图片上传时自动压缩至 500px 宽，节省存储空间
-- 数据存储在手机本地，不会上传到任何服务器
-
-## 隐私说明
-
-所有数据（衣服照片、搭配方案）完全存储在手机浏览器的本地存储中，不会上传到任何服务器。清除浏览器数据会导致数据丢失，请注意备份。
+- 纯前端静态网站，可部署到任何静态托管服务
+- 本地存储使用 IndexedDB，云端同步使用 Supabase
+- 图片上传时自动压缩至 600px 宽，节省存储空间
+- 云端模式下数据存储在 Supabase PostgreSQL 数据库中

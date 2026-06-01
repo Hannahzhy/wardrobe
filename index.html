@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f8f6f3">
 <title>我的衣橱 — 虚拟衣柜搭配</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ===== CSS Variables ===== */
 :root {
@@ -718,6 +719,42 @@ img { display: block; max-width: 100%; }
   margin: 4px 0 16px;
 }
 
+/* Cloud sync status */
+.cloud-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.cloud-status.on { background: #e6f4ec; color: var(--success); }
+.cloud-status.off { background: #fef0ec; color: var(--danger); }
+.cloud-status .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.cloud-status.on .dot { background: var(--success); }
+.cloud-status.off .dot { background: var(--danger); }
+.cloud-config-row {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+.cloud-config-row .form-group { flex: 1; margin-bottom: 0; }
+.cloud-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  line-height: 1.5;
+  background: #fffbf0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 3px solid #f0c040;
+}
+
 /* ===== View Outfit Modal ===== */
 .outfit-detail {
   display: flex;
@@ -1022,6 +1059,31 @@ img { display: block; max-width: 100%; }
       <div class="modal-handle"></div>
       <div class="modal-title">📦 数据管理</div>
 
+      <!-- Cloud Sync Config -->
+      <div class="data-section">
+        <div class="data-section-title">☁️ 云端同步 <span class="cloud-status off" id="cloudStatus"><span class="dot"></span>未连接</span></div>
+        <div class="data-section-desc">连接 Supabase 数据库后，所有设备自动同步数据。手机上传的照片会立刻出现在电脑上。</div>
+        <div class="cloud-config-row">
+          <div class="form-group">
+            <label class="form-label">Supabase URL</label>
+            <input class="form-input" id="supabaseUrl" placeholder="https://xxxxx.supabase.co" style="font-size:0.8rem;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Anon Key</label>
+            <input class="form-input" id="supabaseKey" placeholder="eyJhbG..." style="font-size:0.8rem;">
+          </div>
+        </div>
+        <div class="cloud-hint" id="cloudHint" style="display:none;">
+          💡 如何获取？去 <b>supabase.com</b> 创建免费项目 → Settings → API → 复制 URL 和 anon key。SQL 建表语句见下方。
+        </div>
+        <div class="data-btn-row" style="margin-top:10px;">
+          <button class="data-btn import" id="btnConnectCloud">🔗 连接云端</button>
+          <button class="data-btn clear" id="btnDisconnectCloud" style="display:none;">🔌 断开云端</button>
+        </div>
+      </div>
+
+      <hr class="data-divider">
+
       <div class="data-section">
         <div class="data-section-title">📤 导出数据</div>
         <div class="data-section-desc">将所有衣服照片和搭配方案打包下载为一个文件，可用来备份或在其他设备上导入。</div>
@@ -1078,12 +1140,159 @@ function getCatName(catId) {
   return CATEGORIES.find(c => c.id === catId)?.name || catId;
 }
 
-// ===== IndexedDB =====
+// ===== Supabase Cloud Sync =====
+let supabase = null;
+const CLOUD_KEY = 'wardrobe_cloud_config';
+
+function getCloudConfig() {
+  try {
+    const raw = localStorage.getItem(CLOUD_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function saveCloudConfig(url, key) {
+  localStorage.setItem(CLOUD_KEY, JSON.stringify({ url, key }));
+}
+function clearCloudConfig() {
+  localStorage.removeItem(CLOUD_KEY);
+  supabase = null;
+}
+function isCloudEnabled() { return !!supabase; }
+
+function initSupabase() {
+  const cfg = getCloudConfig();
+  if (cfg && cfg.url && cfg.key) {
+    supabase = window.supabase.createClient(cfg.url, cfg.key);
+    return true;
+  }
+  return false;
+}
+
+function updateCloudStatusUI() {
+  const connected = isCloudEnabled();
+  const status = document.getElementById('cloudStatus');
+  const btnConnect = document.getElementById('btnConnectCloud');
+  const btnDisconnect = document.getElementById('btnDisconnectCloud');
+  const urlInput = document.getElementById('supabaseUrl');
+  const keyInput = document.getElementById('supabaseKey');
+  const hint = document.getElementById('cloudHint');
+
+  if (connected) {
+    status.className = 'cloud-status on';
+    status.innerHTML = '<span class="dot"></span>已连接';
+    btnConnect.textContent = '🔄 重新连接';
+    btnDisconnect.style.display = '';
+    if (urlInput) urlInput.value = getCloudConfig().url;
+    if (keyInput) keyInput.value = getCloudConfig().key;
+  } else {
+    status.className = 'cloud-status off';
+    status.innerHTML = '<span class="dot"></span>未连接';
+    btnConnect.textContent = '🔗 连接云端';
+    btnDisconnect.style.display = 'none';
+  }
+  if (hint) hint.style.display = connected ? 'none' : '';
+}
+
+async function connectCloud() {
+  const url = document.getElementById('supabaseUrl').value.trim();
+  const key = document.getElementById('supabaseKey').value.trim();
+  if (!url || !key) { showToast('请填写 Supabase URL 和 Anon Key', 'danger'); return; }
+
+  // Test connection
+  const testClient = window.supabase.createClient(url, key);
+  const { error } = await testClient.from('clothes').select('count', { count: 'exact', head: true });
+  if (error) {
+    showToast('连接失败：' + (error.message || '请检查 URL 和 Key'), 'danger');
+    return;
+  }
+
+  saveCloudConfig(url, key);
+  supabase = testClient;
+  updateCloudStatusUI();
+  await loadData();
+  showToast('☁️ 云端已连接！数据自动同步中', 'success');
+}
+
+function disconnectCloud() {
+  if (!confirm('断开云端后将使用本地存储，云端数据不会丢失。确定断开？')) return;
+  clearCloudConfig();
+  updateCloudStatusUI();
+  showToast('已切换到本地存储模式', 'danger');
+  // Reload from local
+  loadData();
+}
+
+// ===== Database Layer (auto-routes to cloud or local) =====
+async function dbGetAll(storeName) {
+  if (isCloudEnabled()) {
+    const { data, error } = await supabase.from(storeName).select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    // Map Supabase column names to camelCase
+    return (data || []).map(row => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      image: row.image,
+      createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+      itemIds: row.item_ids || [],
+    }));
+  }
+  // Local IndexedDB
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbAdd(storeName, item) {
+  if (isCloudEnabled()) {
+    const row = {
+      name: item.name || '',
+      category: item.category,
+      image: item.image || '',
+    };
+    if (storeName === 'outfits') {
+      row.item_ids = item.itemIds || [];
+    }
+    const { data, error } = await supabase.from(storeName).insert(row).select();
+    if (error) throw error;
+    return data[0].id;
+  }
+  // Local IndexedDB
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const req = store.add(item);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbDelete(storeName, id) {
+  if (isCloudEnabled()) {
+    const { error } = await supabase.from(storeName).delete().eq('id', id);
+    if (error) throw error;
+    return;
+  }
+  // Local IndexedDB
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ===== IndexedDB (local fallback) =====
 const DB_NAME = 'WardrobeDB';
 const DB_VERSION = 1;
-let db = null;
+let idb = null;
 
-function openDB() {
+function openIDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e) => {
@@ -1095,37 +1304,7 @@ function openDB() {
         d.createObjectStore('outfits', { keyPath: 'id', autoIncrement: true });
       }
     };
-    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function dbGetAll(storeName) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function dbAdd(storeName, item) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const req = store.add(item);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function dbDelete(storeName, id) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const req = store.delete(id);
-    req.onsuccess = () => resolve();
+    req.onsuccess = (e) => { idb = e.target.result; resolve(idb); };
     req.onerror = () => reject(req.error);
   });
 }
@@ -1724,14 +1903,18 @@ async function clearAllData() {
   if (!confirm('⚠️ 确定要删除所有数据吗？\n\n这将清除全部衣服照片和搭配方案。\n建议先导出一份备份。')) return;
   if (!confirm('再次确认：真的要清空吗？此操作不可恢复！')) return;
 
-  const tx = db.transaction(['clothes', 'outfits'], 'readwrite');
-  tx.objectStore('clothes').clear();
-  tx.objectStore('outfits').clear();
-
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = resolve;
-    tx.onerror = reject;
-  });
+  if (isCloudEnabled()) {
+    await supabase.from('outfits').delete().neq('id', 0);
+    await supabase.from('clothes').delete().neq('id', 0);
+  } else {
+    const tx = idb.transaction(['clothes', 'outfits'], 'readwrite');
+    tx.objectStore('clothes').clear();
+    tx.objectStore('outfits').clear();
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve;
+      tx.onerror = reject;
+    });
+  }
 
   clothes = [];
   outfits = [];
@@ -1741,6 +1924,7 @@ async function clearAllData() {
 }
 
 function openDataModal() {
+  updateCloudStatusUI();
   document.getElementById('dataModal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
@@ -1839,6 +2023,16 @@ function setupEvents() {
     clearAllData().then(() => closeDataModal());
   });
 
+  // Cloud sync
+  document.getElementById('btnConnectCloud').addEventListener('click', connectCloud);
+  document.getElementById('btnDisconnectCloud').addEventListener('click', disconnectCloud);
+  document.getElementById('supabaseUrl').addEventListener('focus', () => {
+    document.getElementById('cloudHint').style.display = '';
+  });
+  document.getElementById('supabaseKey').addEventListener('focus', () => {
+    document.getElementById('cloudHint').style.display = '';
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -1875,9 +2069,11 @@ function setupEvents() {
 // ===== Init =====
 async function init() {
   try {
-    await openDB();
+    await openIDB();
+    const cloudReady = initSupabase();
     await loadData();
     setupEvents();
+    if (cloudReady) updateCloudStatusUI();
   } catch (err) {
     console.error('初始化失败:', err);
     document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100dvh;padding:24px;text-align:center;font-family:-apple-system,sans-serif;"><div><h2 style="margin-bottom:12px;">⚠️ 初始化失败</h2><p style="color:#888;line-height:1.7;">请检查浏览器是否支持 IndexedDB<br>或尝试刷新页面</p></div></div>';
